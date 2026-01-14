@@ -1,0 +1,9 @@
+modLoader="javafml"
+loaderVersion="[40]"
+license="ARR"
+[[mods]]
+modId="dragon_meal"
+version="1.0.1"
+displayName="Dragon Meal"
+description='''A simple QOL addon for the Isle of Berk Mod that speeds up Dragon growth.'''
+authors="Kesselot"

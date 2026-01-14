@@ -1,0 +1,8 @@
+{
+  "item.dragon_meal.dragon_feed": "Dragon Feed",
+  "item.dragon_meal.dragon_feed.tooltip": "Speeds up the growth of your dragon",
+  "item.dragon_meal.dragon_fruit": "Dragon Fruit",
+  "item.dragon_meal.dragon_fruit.tooltip": "Turns your Dragon into an adult.",
+  "dragon_meal.error.too_old": "This dragon is already fully grown!",
+  "dragon_meal.error.unsupported_dragon": "This creature cannot be fed Dragon Meal!"
+}
