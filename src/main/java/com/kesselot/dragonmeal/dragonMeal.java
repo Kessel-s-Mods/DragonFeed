@@ -36,6 +36,11 @@ public class dragonMeal {
 	public static final RegistryObject<Item> DRAGON_FRUIT = ITEMS.register("dragon_fruit",
 			() -> new DragonFood(2400, new Item.Properties().tab(CreativeModeTab.TAB_FOOD).stacksTo(64)));
 
+	
+	public static final RegistryObject<Item> DRAGON_FERTILITY_CHARM = ITEMS.register("dragon_fertility_charm",
+			() -> new DragonFertilityCharmItem(new Item.Properties().tab(CreativeModeTab.TAB_FOOD).stacksTo(64)));
+	
+	
 	public dragonMeal() {
 		ITEMS.register(FMLJavaModLoadingContext.get().getModEventBus());
 		MinecraftForge.EVENT_BUS.register(this);
