@@ -2,7 +2,6 @@ package com.kesselot.dragonmeal;
 
 import net.minecraft.Util;
 import net.minecraft.advancements.critereon.StatePropertiesPredicate;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.AgeableMob;
@@ -12,11 +11,13 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CaveVines;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.entries.LootItem;
 import net.minecraft.world.level.storage.loot.predicates.LootItemBlockStatePropertyCondition;
+import net.minecraft.world.level.storage.loot.predicates.LootItemBlockStatePropertyCondition.Builder;
 import net.minecraft.world.level.storage.loot.predicates.LootItemRandomChanceCondition;
 import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
 import net.minecraftforge.common.MinecraftForge;
@@ -78,96 +79,117 @@ public class dragonMeal {
 			table.addPool(feedPool);
 			table.addPool(fruitPool);
 		}
+
+		if (event.getName().toString().contains("cave_vines")) {
+			System.out.println("Loading cave_vines loot table (for glow berries) " + event.getName().toString());
+
+			LootTable table = event.getTable();
+
+			// only when berries are present
+			Builder hasBerries = LootItemBlockStatePropertyCondition.hasBlockStateProperties(Blocks.CAVE_VINES)
+					.setProperties(StatePropertiesPredicate.Builder.properties().hasProperty(CaveVines.BERRIES, true));
+
+			// normal charm 10%
+			LootPool partialCharmPool = LootPool.lootPool().name("dragon_fertility_charm_partial_pool")
+					.setRolls(ConstantValue.exactly(1))
+					.add(LootItem.lootTableItem(DRAGON_FERTILITY_CHARM_PARTIAL.get())).when(hasBerries)
+					.when(LootItemRandomChanceCondition.randomChance(0.10F)).build();
+
+			// full charm 1%
+			LootPool fullCharmPool = LootPool.lootPool().name("dragon_fertility_charm_full_pool")
+					.setRolls(ConstantValue.exactly(1)).add(LootItem.lootTableItem(DRAGON_FERTILITY_CHARM_FULL.get()))
+					.when(hasBerries).when(LootItemRandomChanceCondition.randomChance(0.01F)).build();
+
+			table.addPool(partialCharmPool);
+			table.addPool(fullCharmPool);
+		}
+
 	}
 
-
-
 	private static class DragonInteractionHandler {
-	    @SubscribeEvent
-	    public void onEntityInteract(PlayerInteractEvent.EntityInteractSpecific event) {
-	        if (event.getWorld().isClientSide()) return;
+		@SubscribeEvent
+		public void onEntityInteract(PlayerInteractEvent.EntityInteractSpecific event) {
+			if (event.getWorld().isClientSide())
+				return;
 
-	        Player player = event.getPlayer();
-	        ItemStack stack = event.getItemStack();
-	        Item item = stack.getItem();
-	        Entity target = event.getTarget();
+			Player player = event.getPlayer();
+			ItemStack stack = event.getItemStack();
+			Item item = stack.getItem();
+			Entity target = event.getTarget();
 
-	        // Handle Dragon Food
-	        if (item instanceof DragonFood food) {
-	            if (!(target instanceof AgeableMob ageable)) {
-	                // Not an ageable mob — silently ignore or handle elsewhere
-	                return;
-	            }
+			if (item instanceof DragonFood food) {
+				if (!(target instanceof AgeableMob ageable)) {
+					return;
+				}
 
-	            int currentAge = ageable.getAge();
-	            // Fail early if already adult or in cooldown
-	            if (currentAge >= 0) {
-	                player.sendMessage(new TextComponent("This dragon is already fully grown!"), Util.NIL_UUID);
-	                return;
-	            }
+				int currentAge = ageable.getAge();
+				// Fail early if already adult or in cooldown
+				if (currentAge >= 0) {
+					player.sendMessage(new TextComponent("This dragon is already fully grown!"), Util.NIL_UUID);
+					return;
+				}
 
-	            if (!food.acceptableTarget(ageable, player)) {
-	                // acceptableTarget may send its own message (e.g., unsupported type)
-	                // If you want to override that, comment out the above call and handle here
-	                return;
-	            }
+				if (!food.acceptableTarget(ageable, player)) {
 
-	            int newAge = Math.min(0, currentAge + food.getGrowthAmount());
-	            ageable.setAge(newAge);
+					return;
+				}
 
-	            if (newAge == 0) {
-	                player.sendMessage(new TextComponent("The dragon has reached adulthood!"), Util.NIL_UUID);
-	            }
+				int newAge = Math.min(0, currentAge + food.getGrowthAmount());
+				ageable.setAge(newAge);
 
-	            if (!player.getAbilities().instabuild) {
-	                stack.shrink(1);
-	            }
-	            event.setCanceled(true);
-	            return;
-	        }
+				if (newAge == 0) {
+					player.sendMessage(new TextComponent("The dragon has reached adulthood!"), Util.NIL_UUID);
+				}
 
-	        // Handle Fertility Charms
-	        if (item instanceof DragonFertilityCharmItem charm) {
-	            Class<?> dragonBaseClass;
-	            try {
-	                dragonBaseClass = Class.forName("com.GACMD.isleofberk.entity.base.dragon.ADragonBase");
-	            } catch (ClassNotFoundException ignored) {
-	                return;
-	            }
+				if (!player.getAbilities().instabuild) {
+					stack.shrink(1);
+				}
+				event.setCanceled(true);
+				return;
+			}
 
-	            if (!dragonBaseClass.isAssignableFrom(target.getClass())) {
-	                return;
-	            }
+			// Fertility Charms
+			if (item instanceof DragonFertilityCharmItem charm) {
+				Class<?> dragonBaseClass;
+				try {
+					dragonBaseClass = Class.forName("com.GACMD.isleofberk.entity.base.dragon.ADragonBase");
+				} catch (ClassNotFoundException ignored) {
+					return;
+				}
 
-	            if (!(target instanceof AgeableMob ageable)) {
-	                return;
-	            }
+				if (!dragonBaseClass.isAssignableFrom(target.getClass())) {
+					return;
+				}
 
-	            int currentAge = ageable.getAge();
-	            if (currentAge <= 0) {
-	                player.sendMessage(new TextComponent("This dragon is already ready to breed!"), Util.NIL_UUID);
-	                return;
-	            }
+				if (!(target instanceof AgeableMob ageable)) {
+					return;
+				}
 
-	            int newAge;
-	            if (charm.type == DragonFertilityCharmItem.CharmType.FULL) {
-	                newAge = 0;
-	            } else {
-	                newAge = Math.max(0, currentAge - charm.type.reductionTicks);
-	            }
+				int currentAge = ageable.getAge();
+				if (currentAge <= 0) {
+					player.sendMessage(new TextComponent("This dragon is already ready to breed!"), Util.NIL_UUID);
+					return;
+				}
 
-	            ageable.setAge(newAge);
+				int newAge;
+				if (charm.type == DragonFertilityCharmItem.CharmType.FULL) {
+					newAge = 0;
+				} else {
+					newAge = Math.max(0, currentAge - charm.type.reductionTicks);
+				}
 
-	            if (newAge == 0) {
-	                player.sendMessage(new TextComponent("The dragon is ready to breed again!"), Util.NIL_UUID);
-	            }
+				ageable.setAge(newAge);
 
-	            if (!player.getAbilities().instabuild) {
-	                stack.shrink(1);
-	            }
-	            event.setCanceled(true);
-	        }
-	    }
+				if (newAge == 0) {
+					player.sendMessage(new TextComponent("The dragon is ready to breed again!"), Util.NIL_UUID);
+				}
+
+				if (!player.getAbilities().instabuild) {
+					stack.shrink(1);
+				}
+				event.setCanceled(true);
+			}
+		}
 	}
 
 }
